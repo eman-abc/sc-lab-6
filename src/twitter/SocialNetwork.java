@@ -3,9 +3,14 @@
  */
 package twitter;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * SocialNetwork provides methods that operate on a social network.
@@ -40,9 +45,37 @@ public class SocialNetwork {
      *         All the Twitter usernames in the returned social network must be
      *         either authors or @-mentions in the list of tweets.
      */
-    public static Map<String, Set<String>> guessFollowsGraph(List<Tweet> tweets) {
-        throw new RuntimeException("not implemented");
-    }
+	 public static Map<String, Set<String>> guessFollowsGraph(List<Tweet> tweets) {
+	        Map<String, Set<String>> followsGraph = new HashMap<>();
+
+	        // Regular expression to match @-mentions
+	        Pattern mentionPattern = Pattern.compile("@(\\w+)");
+
+	        // Process each tweet
+	        for (Tweet tweet : tweets) {
+	            String author = tweet.getAuthor().toLowerCase();  // Normalize author to lowercase
+	            String text = tweet.getText();
+	            
+	            // Find all mentions in the tweet
+	            Matcher matcher = mentionPattern.matcher(text);
+	            Set<String> mentionedUsers = new HashSet<>();
+	            
+	            while (matcher.find()) {
+	                String mentionedUser = matcher.group(1).toLowerCase();  // Normalize mentioned user to lowercase
+	                if (!mentionedUser.equals(author)) {  // Users can't follow themselves
+	                    mentionedUsers.add(mentionedUser);
+	                }
+	            }
+	            
+	            // Add mentions to the author's follow set in the graph
+	            if (!mentionedUsers.isEmpty()) {
+	                followsGraph.putIfAbsent(author, new HashSet<>());  // Initialize the set if the author is new
+	                followsGraph.get(author).addAll(mentionedUsers);
+	            }
+	        }
+
+	        return followsGraph;
+	    }
 
     /**
      * Find the people in a social network who have the greatest influence, in
@@ -53,8 +86,39 @@ public class SocialNetwork {
      * @return a list of all distinct Twitter usernames in followsGraph, in
      *         descending order of follower count.
      */
-    public static List<String> influencers(Map<String, Set<String>> followsGraph) {
-        throw new RuntimeException("not implemented");
-    }
+//    public static List<String> influencers(Map<String, Set<String>> followsGraph) {
+//        throw new RuntimeException("not implemented");
+//    }
+	 public static List<String> influencers(Map<String, Set<String>> followsGraph) {
+		    // Step 1: Create a map to count the number of followers for each user
+		    Map<String, Integer> followerCount = new HashMap<>();
+		    
+		    // Iterate through each user and their followers
+		    for (Map.Entry<String, Set<String>> entry : followsGraph.entrySet()) {
+		        String user = entry.getKey();
+		        Set<String> followers = entry.getValue();
+		        
+		        // For each user that this user follows, increase their follower count
+		        for (String followedUser : followers) {
+		            followerCount.put(followedUser, followerCount.getOrDefault(followedUser, 0) + 1);
+		        }
+		    }
+
+		    // Step 2: Create a list to sort users based on follower count
+		    List<String> sortedInfluencers = new ArrayList<>(followerCount.keySet());
+		    
+		    // Sort the influencers by follower count in descending order
+		    // If two users have the same follower count, sort alphabetically
+		    sortedInfluencers.sort((user1, user2) -> {
+		        int countComparison = followerCount.get(user2).compareTo(followerCount.get(user1));
+		        if (countComparison != 0) {
+		            return countComparison; // Sort by count descending
+		        }
+		        return user1.compareTo(user2); // Sort alphabetically for ties
+		    });
+
+		    return sortedInfluencers; // Return the sorted list of influencers
+		}
+
 
 }
